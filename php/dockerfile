@@ -1,0 +1,21 @@
+FROM php:8.2-fpm-alpine
+
+# Instalar dependencias del sistema
+RUN apk add --no-cache \
+    libzip-dev \
+    zip \
+    curl \
+    libpng-dev \
+    oniguruma-dev \
+    libxml2-dev
+
+# Instalar extensiones de PHP
+RUN docker-php-ext-install pdo_mysql mysqli mbstring exif pcntl bcmath gd zip
+
+# Instalar Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+WORKDIR /var/www/html
+
+EXPOSE 9000
+CMD ["php-fpm"]

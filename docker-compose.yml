@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Base de datos MySQL
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - app_network
+
+  # App PHP (multiples instancias para balanceo de carga)
+  php1:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    #container_name: php_app_1
+    volumes:
+      - ./php/src:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app_network
+
+  php2:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    #container_name: php_app_2
+    volumes:
+      - ./php/src:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app_network
+
+  # Balanceador
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_lb
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/sites:/etc/nginx/conf.d
+      - ./php/src:/var/www/html
+    depends_on:
+      - php1
+      - php2
+    networks:
+      - app_network
+
+# Redes y volúmenes
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
