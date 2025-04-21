@@ -1,0 +1,6 @@
+git init
+git remote add origin https://github.com/whitewarlockmtj/Reto2.git
+git add .
+git commit -m "Reto 2"
+git branch -M main
+git push -u origin main
